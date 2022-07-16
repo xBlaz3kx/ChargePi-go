@@ -63,7 +63,15 @@ The HD44780 LCD should be on I2C bus 1 with an address equal to 0x27. To find th
 |      3 (GPIO 2)      |     SDA     |
 |      5 (GPIO 3)      |     SCL     | 
 
-## Relay (or relay module)
+## EVCC
+
+EV charging controller or EVCC controlls the communication with the EV and allows or denies the charging.
+
+### Relay (or relay module)
+
+There are multiple relay options that could be used for the charging station, such as Solid state relays, contactors,
+etc. Choose your option according to your needs. Be very careful with the options and consult a professional, as it may
+become electrical and fire hazard.
 
 It is highly recommended splitting both GND and VCC between relays or using a relay module.
 
@@ -80,15 +88,18 @@ It is highly recommended splitting both GND and VCC between relays or using a re
 | Power meter | Is supported | 
 |:-----------:|:------------:|
 |   CS5460A   |      ✔       |
+|     ETI     |   Planned    |
 
 #### CS5460A
 
-|       RPI PIN        | CS5460A PIN |   RPI PIN    | CS5460A PIN |
-|:--------------------:|:-----------:|:------------:|:-----------:|
-|        4 or 2        |     VCC     | 38 (GPIO 20) |    MOSI     |
-| 25 or any ground pin |     GND     | 35 (GPIO 19) |    MISO     |
-|     Any free pin     |    CE/CS    |      /       |      /      |
-|     40 (GPIO 21)     |     SCK     |      /       |      /      |
+|       RPI PIN        | CS5460A PIN |  
+|:--------------------:|:-----------:|
+|        4 or 2        |     VCC     | 
+| 25 or any ground pin |     GND     | 
+|     Any free pin     |    CE/CS    |   
+|     40 (GPIO 21)     |     SCK     |    
+|     38 (GPIO 20)     |    MOSI     |    
+|     35 (GPIO 19)     |    MISO     |  
 
 ## Indicators
 
@@ -101,13 +112,14 @@ It is highly recommended splitting both GND and VCC between relays or using a re
 
 #### WS2811 and WS2812b
 
-The WS281x LED strip comes in multiple voltage variants. It is recommended to use the 5V variant, because there is no
-need to add an external power supply that will supply 12V or more.
+The WS281x LED strip comes in multiple voltage variants. It is recommended to use the 5V variant, since the Raspberry Pi
+provides the 5V for power instead of using an external power supply.
 
-|   RPI PIN   | WS281x PIN |   RPI PIN    | WS281x PIN |
-|:-----------:|:----------:|:------------:|:----------:|
-| Any 5V pin  |    VCC     | 32 (GPIO 12) |    Data    |
-| Any GND pin |    GND     |      /       |     /      |
+|   RPI PIN    | WS281x PIN |  
+|:------------:|:----------:|
+|  Any 5V pin  |    VCC     | 
+| Any GND pin  |    GND     |   
+| 32 (GPIO 12) |    Data    |
 
 ## Wiring diagram
 

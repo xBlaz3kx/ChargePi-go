@@ -1,13 +1,11 @@
 package test
 
 import (
-	"context"
 	"github.com/lorenzodonini/ocpp-go/ocpp1.6/core"
 	"github.com/lorenzodonini/ocpp-go/ocpp1.6/types"
 	"github.com/reactivex/rxgo/v2"
 	"github.com/stretchr/testify/mock"
 	"github.com/xBlaz3kx/ChargePi-go/internal/components/connector"
-	"github.com/xBlaz3kx/ChargePi-go/internal/components/hardware/display"
 	powerMeter "github.com/xBlaz3kx/ChargePi-go/internal/components/hardware/power-meter"
 	"github.com/xBlaz3kx/ChargePi-go/internal/models"
 	"github.com/xBlaz3kx/ChargePi-go/internal/models/session"
@@ -15,31 +13,11 @@ import (
 )
 
 type (
-	DisplayMock struct {
-		mock.Mock
-	}
-
-	ReaderMock struct {
-		mock.Mock
-	}
-
 	ConnectorMock struct {
 		mock.Mock
 	}
 
 	ManagerMock struct {
-		mock.Mock
-	}
-
-	IndicatorMock struct {
-		mock.Mock
-	}
-
-	PowerMeterMock struct {
-		mock.Mock
-	}
-
-	RelayMock struct {
 		mock.Mock
 	}
 )
@@ -129,46 +107,6 @@ func (o *ManagerMock) SetNotificationChannel(notificationChannel chan rxgo.Item)
 
 func (o *ManagerMock) SetMeterValuesChannel(notificationChannel chan models.MeterValueNotification) {
 	o.Called()
-}
-
-/*------------------ Display mock ------------------*/
-
-func (l *DisplayMock) DisplayMessage(message display.LCDMessage) {
-	l.Called(message)
-}
-
-func (l *DisplayMock) ListenForMessages(ctx context.Context) {
-	l.Called()
-}
-
-func (l *DisplayMock) Cleanup() {
-	l.Called()
-}
-
-func (l *DisplayMock) Clear() {
-	l.Called()
-}
-
-func (l *DisplayMock) GetLcdChannel() chan<- display.LCDMessage {
-	return l.Called().Get(0).(chan display.LCDMessage)
-}
-
-/*------------------ Reader mock ------------------*/
-
-func (r *ReaderMock) ListenForTags(ctx context.Context) {
-	r.Called()
-}
-
-func (r *ReaderMock) Cleanup() {
-	r.Called()
-}
-
-func (r *ReaderMock) Reset() {
-	r.Called()
-}
-
-func (r *ReaderMock) GetTagChannel() <-chan string {
-	return r.Called().Get(0).(chan string)
 }
 
 /*------------------ Connector mock ------------------*/
@@ -282,66 +220,4 @@ func (m *ConnectorMock) GetPowerMeter() powerMeter.PowerMeter {
 func (m *ConnectorMock) GetMaxChargingTime() int {
 	args := m.Called()
 	return args.Int(0)
-}
-
-/*------------------ Indicator mock ------------------*/
-
-func (i *IndicatorMock) DisplayColor(index int, colorHex uint32) error {
-	args := i.Called(index, colorHex)
-	return args.Error(0)
-}
-
-func (i *IndicatorMock) Blink(index int, times int, colorHex uint32) error {
-	args := i.Called(index, times, colorHex)
-	return args.Error(0)
-}
-
-func (i *IndicatorMock) Cleanup() {
-	i.Called()
-}
-
-/*---------------------- Power Meter Mock ----------------------*/
-
-func (p *PowerMeterMock) Reset() {
-	p.Called()
-}
-
-func (p *PowerMeterMock) GetEnergy() float64 {
-	args := p.Called()
-	return args.Get(0).(float64)
-}
-
-func (p *PowerMeterMock) GetPower() float64 {
-	args := p.Called()
-	return args.Get(0).(float64)
-}
-
-func (p *PowerMeterMock) GetCurrent() float64 {
-	args := p.Called()
-	return args.Get(0).(float64)
-}
-
-func (p *PowerMeterMock) GetVoltage() float64 {
-	args := p.Called()
-	return args.Get(0).(float64)
-}
-
-func (p *PowerMeterMock) GetRMSCurrent() float64 {
-	args := p.Called()
-	return args.Get(0).(float64)
-}
-
-func (p *PowerMeterMock) GetRMSVoltage() float64 {
-	args := p.Called()
-	return args.Get(0).(float64)
-}
-
-/*---------------------- Relay Mock ----------------------*/
-
-func (r *RelayMock) Enable() {
-	r.Called()
-}
-
-func (r *RelayMock) Disable() {
-	r.Called()
 }

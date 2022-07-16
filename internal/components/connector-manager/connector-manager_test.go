@@ -72,10 +72,7 @@ func (suite *connectorManagerTestSuite) SetupTest() {
 			Started:       "",
 			Consumption:   nil,
 		},
-		Relay: settingsModel.Relay{
-			RelayPin:     14,
-			InverseLogic: false,
-		},
+		EVCC: settingsModel.EVCC{},
 		PowerMeter: settingsModel.PowerMeter{
 			Enabled:              false,
 			Type:                 "",
@@ -157,11 +154,8 @@ func (suite *connectorManagerTestSuite) TestAddConnectorFromSettings() {
 		Type:        "Schuko",
 		Status:      "Available",
 		Session:     settingsModel.Session{},
-		Relay: settingsModel.Relay{
-			RelayPin:     23,
-			InverseLogic: false,
-		},
-		PowerMeter: settingsModel.PowerMeter{},
+		EVCC:        settingsModel.EVCC{},
+		PowerMeter:  settingsModel.PowerMeter{},
 	})
 	suite.Require().NoError(err)
 

@@ -7,7 +7,7 @@ import (
 	"github.com/reactivex/rxgo/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/xBlaz3kx/ChargePi-go/internal/components/connector"
-	"github.com/xBlaz3kx/ChargePi-go/internal/components/hardware"
+	"github.com/xBlaz3kx/ChargePi-go/internal/components/hardware/evcc"
 	powerMeter "github.com/xBlaz3kx/ChargePi-go/internal/components/hardware/power-meter"
 	"github.com/xBlaz3kx/ChargePi-go/internal/models"
 	"github.com/xBlaz3kx/ChargePi-go/internal/models/session"
@@ -245,13 +245,14 @@ func (m *managerImpl) AddConnectorFromSettings(maxChargingTime int, c *settings.
 	}
 
 	var (
-		relay = hardware.NewRelay(
-			c.Relay.RelayPin,
-			c.Relay.InverseLogic,
-		)
+		relay, err = evcc.NewEVCCFromType(c.EVCC)
 		// Create a PowerMeter from connector settings
 		meter, powerMeterErr = powerMeter.NewPowerMeter(c.PowerMeter)
 	)
+
+	if err != nil {
+		log.Fatalf("Cannot create EVCC from settings")
+	}
 
 	if powerMeterErr != nil {
 		log.Warnf("Cannot instantiate power meter: %s", powerMeterErr)

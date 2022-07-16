@@ -2,7 +2,7 @@
 
 ## Read before continuing
 
-The process of installing the dependencies was automated by creating a [script](../install-dependencies.sh) for
+The process of installing the dependencies was automated by creating a [script](../../scripts/install-dependencies.sh) for
 installing the necessary dependencies. The script has the following arguments:
 
 | Argument | Default value |                                                    Description                                                    |

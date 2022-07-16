@@ -9,13 +9,14 @@ type (
 		LedIndicator LedIndicator `fig:"ledIndicator" json:"ledIndicator" yaml:"ledIndicator" mapstructure:"ledIndicator"`
 	}
 
-	Relay struct {
-		RelayPin     int  `fig:"RelayPin" validate:"required" json:"RelayPin,omitempty" yaml:"RelayPin" mapstructure:"RelayPin"`
-		InverseLogic bool `fig:"InverseLogic" json:"InverseLogic,omitempty" yaml:"InverseLogic" mapstructure:"InverseLogic"`
-	}
-
 	EVCC struct {
 		Type string
+		// If Type is "Relay"
+		RelayPin     int  `fig:"RelayPin" validate:"required" json:"RelayPin,omitempty" yaml:"RelayPin" mapstructure:"RelayPin"`
+		InverseLogic bool `fig:"InverseLogic" json:"InverseLogic,omitempty" yaml:"InverseLogic" mapstructure:"InverseLogic"`
+
+		// If Type is "Phoenix"
+		PhoenixAddress string `fig:"phoenixAddress" json:"phoenixAddress,omitempty" yaml:"phoenixAddress" mapstructure:"phoenixAddress"`
 	}
 
 	LedIndicator struct {

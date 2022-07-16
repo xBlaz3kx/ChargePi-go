@@ -5,7 +5,8 @@ There are four hardware component groups that are included in the project:
 1. NFC/RFID tag reader,
 2. LCD (display),
 3. (Led) Indicator,
-4. Power meter
+4. Power meter,
+5. EVCC.
 
 These hardware components have corresponding interfaces that are included in the `ChargePointHandler` struct. This
 allows adding support for other models of hardware with similar functionalities.
@@ -27,34 +28,48 @@ NewTagReader method.
 ```golang
 package reader
 
+import (
+	"context"
+	"errors"
+	log "github.com/sirupsen/logrus"
+	"github.com/xBlaz3kx/ChargePi-go/internal/models/settings"
+)
+
+// Supported readers - by libnfc
 const (
-	// Add the reader model here
 	PN532 = "PN532"
 )
 
+var (
+	ErrReaderUnsupported = errors.New("reader type unsupported")
+	ErrReaderDisabled    = errors.New("reader disabled")
+)
+
+// Reader is an abstraction for an RFID/NFC tag reader.
 type Reader interface {
-	init()
-	ListenForTags()
+	ListenForTags(ctx context.Context)
 	Cleanup()
 	Reset()
-	GetTagChannel() chan string
+	GetTagChannel() <-chan string
 }
 
-func NewTagReader() Reader {
-	//...
-	if tagReaderSettings.IsSupported {
-		log.Println("Preparing tag reader from config:", tagReaderSettings.ReaderModel)
-		switch tagReaderSettings.ReaderModel {
-		// Add a new case with your implementation and return the pointer
+// NewTagReader creates an instance of the Reader interface based on the provided configuration.
+func NewTagReader(reader settings.TagReader) (Reader, error) {
+	if reader.IsEnabled {
+		log.Infof("Preparing tag reader from config: %s", reader.ReaderModel)
+
+		switch reader.ReaderModel {
 		case PN532:
-			//...
-			return reader
+			return nil, nil
+			// Your custom implmentation
 		default:
-			return nil
+			return nil, ErrReaderUnsupported
 		}
 	}
-	return nil
+
+	return nil, ErrReaderDisabled
 }
+
 ```
 
 ## 🖥️ Display hardware
@@ -67,9 +82,21 @@ necessary logic that returns a pointer to the struct.
 ```golang
 package display
 
+import (
+	"context"
+	"errors"
+	log "github.com/sirupsen/logrus"
+	"github.com/xBlaz3kx/ChargePi-go/internal/models/settings"
+	"time"
+)
+
 const (
-	// Add the LCD driver here
 	DriverHD44780 = "hd44780"
+)
+
+var (
+	ErrDisplayUnsupported = errors.New("display type unsupported")
+	ErrDisplayDisabled    = errors.New("display disabled")
 )
 
 type (
@@ -77,36 +104,44 @@ type (
 	// Each array element in Messages represents a line being displayed on the 16x2 screen.
 	LCDMessage struct {
 		Messages        []string
-		messageDuration int
+		MessageDuration time.Duration
 	}
 
 	// LCD is an abstraction layer for concrete implementation of a display.
 	LCD interface {
 		DisplayMessage(message LCDMessage)
-		ListenForMessages()
+		ListenForMessages(ctx context.Context)
 		Cleanup()
 		Clear()
-		GetLcdChannel() chan LCDMessage
+		GetLcdChannel() chan<- LCDMessage
 	}
 )
 
+// NewMessage creates a new message for the LCD.
+func NewMessage(duration time.Duration, messages []string) LCDMessage {
+	return LCDMessage{
+		Messages:        messages,
+		MessageDuration: duration,
+	}
+}
+
 // NewDisplay returns a concrete implementation of an LCD based on the drivers that are supported.
 // The LCD is built with the settings from the settings file.
-func NewDisplay() LCD {
-	//...
-	if lcdSettings.IsSupported {
-		log.Println("Preparing LCD from config")
+func NewDisplay(lcdSettings settings.Display) (LCD, error) {
+	if lcdSettings.IsEnabled {
+		log.Info("Preparing LCD from config")
+
 		switch lcdSettings.Driver {
-		// Add a new case with your implementation and return the pointer
 		case DriverHD44780:
-			//..
-			return lcd
+		// custom implementation
 		default:
-			return nil
+			return nil, ErrDisplayUnsupported
 		}
 	}
-	return nil
+
+	return nil, ErrDisplayDisabled
 }
+
 ```
 
 ## Indicator hardware
@@ -116,32 +151,65 @@ The process is the same as the previous description.
 ```golang
 package indicator
 
+import (
+	"errors"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
+)
+
+// color constants
 const (
-	//...
-	// Add your indicator const here
+	Off    = 0x0
+	White  = 0xFFFFFF
+	Red    = 0xff0000
+	Green  = 0x00ff00
+	Blue   = 0x000ff
+	Yellow = 0xeeff00
+	Orange = 0xff7b00
+)
+
+// Supported types
+const (
 	TypeWS281x = "WS281x"
 )
 
-type Indicator interface {
-	DisplayColor(index int, colorHex uint32) error
-	Blink(index int, times int, colorHex uint32) error
-	Cleanup()
-}
+var (
+	ErrInvalidIndex        = errors.New("invalid index")
+	ErrInvalidPin          = errors.New("invalid data pin #")
+	ErrInvalidNumberOfLeds = errors.New("number of leds must be greater than zero")
+)
+
+type (
+	// Indicator is an abstraction layer for connector status indication, usually an RGB LED strip.
+	Indicator interface {
+		DisplayColor(index int, colorHex uint32) error
+		Blink(index int, times int, colorHex uint32) error
+		Cleanup()
+	}
+)
 
 // NewIndicator constructs the Indicator based on the type provided by the settings file.
 func NewIndicator(stripLength int) Indicator {
-	//...
-	if indicatorSettings.Enabled {
-		log.Println("Preparing Indicator from config: ", indicatorSettings.Type)
-		switch indicatorSettings.Type {
-		// Add a case with your implementation here
+	var (
+		indicatorEnabled = viper.GetBool("chargepoint.hardware.ledIndicator.enabled")
+		indicatorType    = viper.GetString("chargepoint.hardware.ledIndicator.type")
+		indicateCardRead = viper.GetBool("chargepoint.hardware.ledIndicator.indicateCardRead")
+	)
+
+	if indicatorEnabled {
+		if indicateCardRead {
+			stripLength++
+		}
+
+		log.Infof("Preparing Indicator from config: %s", indicatorType)
+		switch indicatorType {
 		case TypeWS281x:
-			//...
-			return ledStrip
+			// Your custom implementation
 		default:
 			return nil
 		}
 	}
+
 	return nil
 }
 ```
@@ -151,39 +219,102 @@ func NewIndicator(stripLength int) Indicator {
 The process is the same as the previous description.
 
 ```golang
-package power_meter
+package powerMeter
 
+import (
+	"context"
+	"errors"
+	log "github.com/sirupsen/logrus"
+	"github.com/xBlaz3kx/ChargePi-go/internal/models/settings"
+)
+
+// Supported power meters
 const (
-	// Add your power meter type here
 	TypeC5460A = "cs5460a"
 )
 
-type PowerMeter interface {
-	Reset()
-	GetEnergy() float64
-	GetPower() float64
-	GetCurrent() float64
-	GetVoltage() float64
-	GetRMSCurrent() float64
-	GetRMSVoltage() float64
-}
+var (
+	ErrPowerMeterUnsupported = errors.New("power meter type not supported")
+	ErrPowerMeterDisabled    = errors.New("power meter not enabled")
+)
 
-func NewPowerMeter(connector *settings.Connector) (PowerMeter, error) {
-	if connector.PowerMeter.Enabled {
-		log.Println("Creating a new power meter:", connector.PowerMeter.Type)
-		switch connector.PowerMeter.Type {
-		// Add your case with implementation here
+// PowerMeter is an abstraction for measurement hardware.
+type (
+	PowerMeter interface {
+		Init(ctx context.Context) error
+		Reset()
+		GetEnergy() float64
+		GetPower() float64
+		GetCurrent() float64
+		GetVoltage() float64
+		GetRMSCurrent() float64
+		GetRMSVoltage() float64
+	}
+)
+
+// NewPowerMeter creates a new power meter based on the connector settings.
+func NewPowerMeter(meterSettings settings.PowerMeter) (PowerMeter, error) {
+	if meterSettings.Enabled {
+		log.Infof("Creating a new power meter: %s", meterSettings.Type)
+
+		switch meterSettings.Type {
 		case TypeC5460A:
-			return NewCS5460PowerMeter(
-				connector.PowerMeter.PowerMeterPin,
-				connector.PowerMeter.SpiBus,
-				connector.PowerMeter.ShuntOffset,
-				connector.PowerMeter.VoltageDividerOffset,
-			)
+			// Your custom implementation
+			return nil, nil
 		default:
-			return nil, fmt.Errorf("power meter type not supported")
+			return nil, ErrPowerMeterUnsupported
 		}
 	}
-	return nil, fmt.Errorf("power meter not enabled")
+
+	return nil, ErrPowerMeterDisabled
+}
+```
+
+## ⚡ EVCC
+
+The process is similar to other components. Note: Init method will be called whenever the charge point boots.
+The init method should perform any necessary setup steps, such as opening a communication path. Any two-way
+communication should be initiated in another thread and should communicate through channels.
+
+```golang
+package evcc
+
+import (
+	"context"
+	"github.com/xBlaz3kx/ChargePi-go/internal/models/settings"
+)
+
+const (
+	PhoenixEMCPPPETH = "EM-CP-PP-ETH"
+	Relay            = "Relay"
+)
+
+type (
+	EVCC interface {
+		Init(ctx context.Context) error
+		EnableCharging() error
+		DisableCharging()
+		SetMaxChargingCurrent(value float64) error
+		GetMaxChargingCurrent() float64
+		Lock()
+		Unlock()
+		GetState() string
+		Cleanup() error
+	}
+)
+
+// NewPowerMeter creates a new power meter based on the connector settings.
+func NewEVCCFromType(evccSettings settings.EVCC) (EVCC, error) {
+	switch evccSettings.Type {
+	case Relay:
+		return nil, nil
+	case PhoenixEMCPPPETH:
+		return nil, nil
+		// Your custom implementation
+	default:
+		return nil, nil
+	}
+}
+
 }
 ```

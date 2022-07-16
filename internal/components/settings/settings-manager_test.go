@@ -18,7 +18,7 @@ type SettingsManagerTestSuite struct {
 	suite.Suite
 	connector  settingsData.Connector
 	session    settingsData.Session
-	relay      settingsData.Relay
+	evcc       settingsData.EVCC
 	powerMeter settingsData.PowerMeter
 }
 
@@ -31,10 +31,7 @@ func (s *SettingsManagerTestSuite) SetupTest() {
 		Consumption:   nil,
 	}
 
-	s.relay = settingsData.Relay{
-		RelayPin:     1,
-		InverseLogic: false,
-	}
+	s.evcc = settingsData.EVCC{}
 
 	s.powerMeter = settingsData.PowerMeter{
 		Enabled:              false,
@@ -52,7 +49,7 @@ func (s *SettingsManagerTestSuite) SetupTest() {
 		Type:        "Schuko",
 		Status:      "Available",
 		Session:     s.session,
-		Relay:       s.relay,
+		EVCC:        s.evcc,
 		PowerMeter:  s.powerMeter,
 	}
 }

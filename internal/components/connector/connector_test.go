@@ -4,10 +4,10 @@ import (
 	"github.com/lorenzodonini/ocpp-go/ocpp1.6/core"
 	"github.com/lorenzodonini/ocpp-go/ocpp1.6/types"
 	log "github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/xBlaz3kx/ChargePi-go/internal/models"
 	"github.com/xBlaz3kx/ChargePi-go/internal/models/session"
+	"github.com/xBlaz3kx/ChargePi-go/test"
 	"golang.org/x/net/context"
 	"os/exec"
 	"testing"
@@ -19,67 +19,14 @@ const (
 )
 
 type (
-	PowerMeterMock struct {
-		mock.Mock
-	}
-
-	RelayMock struct {
-		mock.Mock
-	}
 	ConnectorTestSuite struct {
 		suite.Suite
 		connector      *connectorImpl
 		relayPinNum    int
-		relayMock      *RelayMock
-		powerMeterMock *PowerMeterMock
+		relayMock      *test.EvccMock
+		powerMeterMock *test.PowerMeterMock
 	}
 )
-
-/*---------------------- Power Meter Mock ----------------------*/
-
-func (p *PowerMeterMock) Reset() {
-	p.Called()
-}
-
-func (p *PowerMeterMock) GetEnergy() float64 {
-	args := p.Called()
-	return args.Get(0).(float64)
-}
-
-func (p *PowerMeterMock) GetPower() float64 {
-	args := p.Called()
-	return args.Get(0).(float64)
-}
-
-func (p *PowerMeterMock) GetCurrent() float64 {
-	args := p.Called()
-	return args.Get(0).(float64)
-}
-
-func (p *PowerMeterMock) GetVoltage() float64 {
-	args := p.Called()
-	return args.Get(0).(float64)
-}
-
-func (p *PowerMeterMock) GetRMSCurrent() float64 {
-	args := p.Called()
-	return args.Get(0).(float64)
-}
-
-func (p *PowerMeterMock) GetRMSVoltage() float64 {
-	args := p.Called()
-	return args.Get(0).(float64)
-}
-
-/*---------------------- Relay Mock ----------------------*/
-
-func (r *RelayMock) Enable() {
-	r.Called()
-}
-
-func (r *RelayMock) Disable() {
-	r.Called()
-}
 
 /*---------------------- Test suite ----------------------*/
 
@@ -94,8 +41,8 @@ func (s *ConnectorTestSuite) SetupTest() {
 	err := cmd.Run()
 	s.Require().NoError(err)
 
-	s.relayMock = new(RelayMock)
-	s.powerMeterMock = new(PowerMeterMock)
+	s.relayMock = new(test.EvccMock)
+	s.powerMeterMock = new(test.PowerMeterMock)
 
 	s.relayMock.On("Enable").Return()
 	s.relayMock.On("Disable").Return()
@@ -138,17 +85,17 @@ func (s *ConnectorTestSuite) TestCreateNewConnector() {
 
 	// Invalid evseId
 	_, err = NewConnector(0, 1, "Schuko",
-		s.relayMock, new(PowerMeterMock), false, 15)
+		s.relayMock, new(test.PowerMeterMock), false, 15)
 	s.Require().Error(err)
 
 	// Invalid connectorId
 	_, err = NewConnector(1, 0, "Schuko",
-		s.relayMock, new(PowerMeterMock), false, 15)
+		s.relayMock, new(test.PowerMeterMock), false, 15)
 	s.Require().Error(err)
 
 	// Negative connector id
 	_, err = NewConnector(1, -1, "Schuko",
-		s.relayMock, new(PowerMeterMock), false, 15)
+		s.relayMock, new(test.PowerMeterMock), false, 15)
 	s.Require().Error(err)
 }
 
@@ -299,7 +246,7 @@ func (s *ConnectorTestSuite) TestRemoveReservation() {
 }
 
 func (s *ConnectorTestSuite) TestSamplePowerMeter() {
-	s.powerMeterMock = new(PowerMeterMock)
+	s.powerMeterMock = new(test.PowerMeterMock)
 
 	s.powerMeterMock.On("GetEnergy").Return(1.0)
 	s.powerMeterMock.On("GetCurrent").Return(1.0)

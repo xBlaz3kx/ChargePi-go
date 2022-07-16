@@ -1,46 +1,48 @@
-package hardware
+package evcc
 
 import (
+	"context"
+	"errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/warthog618/gpiod"
 )
 
+var (
+	ErrInvalidPinNumber = errors.New("pin number must be greater than 0")
+	ErrInitFailed       = errors.New("init failed")
+)
+
 type (
-	RelayImpl struct {
+	relayAsEvcc struct {
 		RelayPin     int
 		InverseLogic bool
 		currentState bool
 		pin          *gpiod.Line
 	}
-
-	Relay interface {
-		Enable()
-		Disable()
-	}
 )
 
 // NewRelay creates a new RelayImpl struct that will communicate with the GPIO pin specified.
-func NewRelay(relayPin int, inverseLogic bool) *RelayImpl {
+func NewRelay(relayPin int, inverseLogic bool) (*relayAsEvcc, error) {
 	if relayPin <= 0 {
-		return nil
+		return nil, ErrInvalidPinNumber
 	}
 
 	log.Debugf("Creating new relay at pin %d", relayPin)
-	relay := RelayImpl{
+	relay := relayAsEvcc{
 		RelayPin:     relayPin,
 		InverseLogic: inverseLogic,
 		currentState: inverseLogic,
 	}
 
-	err := relay.initPin()
+	err := relay.Init(nil)
 	if err != nil {
-		return nil
+		return nil, ErrInitFailed
 	}
 
-	return &relay
+	return &relay, nil
 }
 
-func (r *RelayImpl) initPin() error {
+func (r *relayAsEvcc) Init(ctx context.Context) error {
 	// Refer to gpiod docs
 	c, err := gpiod.NewChip("gpiochip0")
 	if err != nil {
@@ -51,7 +53,17 @@ func (r *RelayImpl) initPin() error {
 	return err
 }
 
-func (r *RelayImpl) Enable() {
+func (r *relayAsEvcc) Lock() {
+}
+
+func (r *relayAsEvcc) Unlock() {
+}
+
+func (r *relayAsEvcc) GetState() string {
+	return ""
+}
+
+func (r *relayAsEvcc) EnableCharging() error {
 	if r.InverseLogic {
 		_ = r.pin.SetValue(0)
 	} else {
@@ -60,9 +72,10 @@ func (r *RelayImpl) Enable() {
 
 	// Always consider positive logic for status determination
 	r.currentState = true
+	return nil
 }
 
-func (r *RelayImpl) Disable() {
+func (r *relayAsEvcc) DisableCharging() {
 	if r.InverseLogic {
 		_ = r.pin.SetValue(1)
 	} else {
@@ -73,6 +86,14 @@ func (r *RelayImpl) Disable() {
 	r.currentState = false
 }
 
-func (r *RelayImpl) Close() {
-	_ = r.pin.Close()
+func (r *relayAsEvcc) SetMaxChargingCurrent(value float64) error {
+	return nil
+}
+
+func (r *relayAsEvcc) GetMaxChargingCurrent() float64 {
+	return 0.0
+}
+
+func (r *relayAsEvcc) Cleanup() error {
+	return r.pin.Close()
 }

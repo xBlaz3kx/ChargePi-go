@@ -7,7 +7,7 @@ import (
 	"github.com/lorenzodonini/ocpp-go/ocpp1.6/types"
 	"github.com/reactivex/rxgo/v2"
 	log "github.com/sirupsen/logrus"
-	"github.com/xBlaz3kx/ChargePi-go/internal/components/hardware"
+	"github.com/xBlaz3kx/ChargePi-go/internal/components/hardware/evcc"
 	"github.com/xBlaz3kx/ChargePi-go/internal/components/hardware/power-meter"
 	"github.com/xBlaz3kx/ChargePi-go/internal/components/settings"
 	"github.com/xBlaz3kx/ChargePi-go/internal/models"
@@ -26,7 +26,6 @@ var (
 	ErrInvalidConnectorId       = errors.New("invalid connector id")
 	ErrInvalidReservationId     = errors.New("invalid reservation id")
 	ErrInvalidConnectorStatus   = errors.New("invalid connector status")
-	ErrRelayPointerNil          = errors.New("relay pointer cannot be nil")
 	ErrSessionTimeLimitExceeded = errors.New("session time limit exceeded")
 	ErrNotCharging              = errors.New("connector not charging")
 )
@@ -39,7 +38,7 @@ type (
 		ConnectorType                string
 		ConnectorStatus              core.ChargePointStatus
 		ErrorCode                    core.ChargePointErrorCode
-		relay                        hardware.Relay
+		evcc                         evcc.EVCC
 		powerMeter                   powerMeter.PowerMeter
 		PowerMeterEnabled            bool
 		MaxChargingTime              int
@@ -77,9 +76,16 @@ type (
 )
 
 // NewConnector Create a new connector object from the provided arguments. EvseId, connectorId and maxChargingTime must be greater than zero.
-// When created, it makes an empty session, turns off the relay and defaults the status to Available.
-func NewConnector(evseId int, connectorId int, connectorType string, relay hardware.Relay,
-	powerMeter powerMeter.PowerMeter, powerMeterEnabled bool, maxChargingTime int) (*connectorImpl, error) {
+// When created, it makes an empty session, turns off the evcc and defaults the status to Available.
+func NewConnector(
+	evseId int,
+	connectorId int,
+	connectorType string,
+	evcc evcc.EVCC,
+	powerMeter powerMeter.PowerMeter,
+	powerMeterEnabled bool,
+	maxChargingTime int,
+) (*connectorImpl, error) {
 	log.WithFields(log.Fields{
 		"evseId":          evseId,
 		"connectorId":     connectorId,
@@ -100,17 +106,13 @@ func NewConnector(evseId int, connectorId int, connectorType string, relay hardw
 		return nil, ErrInvalidConnectorId
 	}
 
-	if util.IsNilInterfaceOrPointer(relay) {
-		return nil, ErrRelayPointerNil
-	}
-
-	relay.Disable()
+	evcc.DisableCharging()
 	return &connectorImpl{
 		mu:                sync.Mutex{},
 		EvseId:            evseId,
 		ConnectorId:       connectorId,
 		ConnectorType:     connectorType,
-		relay:             relay,
+		evcc:              evcc,
 		powerMeter:        powerMeter,
 		reservationId:     -1,
 		PowerMeterEnabled: powerMeterEnabled,
@@ -121,7 +123,7 @@ func NewConnector(evseId int, connectorId int, connectorType string, relay hardw
 }
 
 // StartCharging Start charging a connector if connector is available and session could be started.
-// It turns on the relay (even if negative logic applies).
+// It turns on the evcc (even if negative logic applies).
 func (connector *connectorImpl) StartCharging(transactionId string, tagId string) error {
 	logInfo := log.WithFields(log.Fields{
 		"evseId":        connector.EvseId,
@@ -141,7 +143,11 @@ func (connector *connectorImpl) StartCharging(transactionId string, tagId string
 		return sessionErr
 	}
 
-	connector.relay.Enable()
+	err := connector.evcc.EnableCharging()
+	if err != nil {
+		return err
+	}
+
 	connector.SetStatus(core.ChargePointStatusCharging, core.NoError)
 
 	settings.UpdateConnectorSessionInfo(
@@ -196,7 +202,11 @@ func (connector *connectorImpl) ResumeCharging(session session.Session) (err err
 			return fmt.Errorf("cannot resume session: %v", sessionErr), connector.MaxChargingTime
 		}
 
-		connector.relay.Enable()
+		err = connector.evcc.EnableCharging()
+		if err != nil {
+			return err, 0
+		}
+
 		connector.session.Started = session.Started
 		connector.session.Consumption = append(connector.session.Consumption, session.Consumption...)
 		return nil, chargingTimeElapsed
@@ -205,7 +215,7 @@ func (connector *connectorImpl) ResumeCharging(session session.Session) (err err
 	return ErrInvalidConnectorStatus, connector.MaxChargingTime
 }
 
-// StopCharging Stops charging the connector by turning the relay off and ending the session.
+// StopCharging Stops charging the connector by turning the evcc off and ending the session.
 func (connector *connectorImpl) StopCharging(reason core.Reason) error {
 	logInfo := log.WithFields(log.Fields{
 		"evseId":      connector.EvseId,
@@ -216,7 +226,7 @@ func (connector *connectorImpl) StopCharging(reason core.Reason) error {
 	if connector.IsCharging() || connector.IsPreparing() {
 		logInfo.Debugf("Stopping charging")
 		connector.session.EndSession()
-		connector.relay.Disable()
+		connector.evcc.DisableCharging()
 
 		settings.UpdateConnectorSessionInfo(
 			connector.EvseId,

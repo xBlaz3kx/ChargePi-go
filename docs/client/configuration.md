@@ -165,7 +165,7 @@ Example connector:
     "started": "",
     "consumption": []
   },
-  "relay": {
+  "evcc": {
     "relayPin": 26,
     "inverseLogic": false
   },
